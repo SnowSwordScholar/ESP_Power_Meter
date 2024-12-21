@@ -20,6 +20,13 @@
 #define LCD_SDA_PIN 17    // 主设备输出，设备输入
 #define LCD_DC_PIN  18    
 
+#define KeyPin1 4	// Key1 : >
+#define KeyPin2 5	// Key2 : <
+#define KeyPin3 6	// key3 : #
+#define KeyPin4 7	// Key4 : *
+
+
+
 #endif // DEFINE_H
 
 

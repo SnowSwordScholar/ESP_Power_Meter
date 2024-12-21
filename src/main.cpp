@@ -31,7 +31,10 @@ void resetTime() {
   startTime = millis();
 }
 
+// 请求电压数值
 void continuousSampling();
+// 格式化输出
+String formatFloat(float num, int decimalPlaces);
 
 // 初始化设置
 void setup() {
@@ -74,6 +77,13 @@ void setup() {
   pinMode(0, INPUT_PULLUP);  // 按钮引脚，假设接在 GPIO 0 上
   Wire.begin(SDA_PIN, SCL_PIN);
   ina226.init();
+  // 电阻和最大电流设置
+  ina226.setResistorRange(0.005,10.0);
+    /* 如果INA226提供的电流值与使用校准设备获得的值相差一个常数因子
+     您可以定义一个校正因子。
+     校正因子 = 校准设备提供的电流 / INA226提供的电流
+  */
+  ina226.setCorrectionFactor(1.220);
   
   delay(1000);
   // 功率单位显示  W 
@@ -102,7 +112,7 @@ void loop() {
   tft.setTextColor(TFT_PINK, TFT_BLACK);
   tft.setTextFont(6);
   tft.setCursor(10, 20);
-  tft.print(calculatePower(), 3);  // 显示功率值
+  tft.print(formatFloat(calculatePower(),3));  // 显示功率值
 
 
   // 分隔线（cyan）
@@ -112,12 +122,12 @@ void loop() {
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
   tft.setTextFont(4);
   tft.setCursor(0, 77);
-  tft.print(loadVoltage_V, 2);
+  tft.print(formatFloat(loadVoltage_V,2));
   tft.print(" V");
 
   tft.setCursor(0, 105);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
-  tft.print(current_mA/1000l, 2);
+  tft.print(formatFloat(current_mA/1000l,3));
   tft.print(" A");
 
 
@@ -141,7 +151,7 @@ void loop() {
   sprintf(timeBuffer, "%02d:%02d %02d", hours, minutes, seconds);
 
   // 显示时间
-  tft.setCursor(90, 107);  // 调整位置
+  tft.setCursor(90, 0);  // 调整位置
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
   tft.print(timeBuffer);
 
@@ -174,4 +184,29 @@ void continuousSampling() {
     Serial.println("Overflow! Choose higher current range");
   }
   Serial.println();
+}
+
+
+
+String formatFloat(float num, int decimalPlaces) {
+  // If the number is negative, set it to zero
+  if (num < 0) {
+    num = 0;
+  }
+
+  // Create a format string for the required number of decimal places
+  String formatString = String("%0." + String(decimalPlaces) + "f");
+  
+  // Format the number according to the format string
+  char buffer[20];  // Buffer to hold the formatted string
+  snprintf(buffer, sizeof(buffer), formatString.c_str(), num);
+
+  String formattedString = String(buffer);
+
+  // Ensure the output always has two digits before the decimal point
+  if (formattedString.length() < (decimalPlaces + 4)) {  // Considering 1 for decimal point
+    formattedString = "0" + formattedString;
+  }
+
+  return formattedString;
 }
