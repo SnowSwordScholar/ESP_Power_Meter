@@ -38,10 +38,36 @@ void setup() {
   tft.init();
   tft.setRotation(3);  // 屏幕方向，根据实际调整
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_PINK, TFT_BLACK);
-  tft.setTextFont(6);
-  tft.setCursor(0, 0);
-  tft.print("Starting");  // 显示功率值
+
+    // 设置文本颜色和字体
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(2);
+
+  // 显示开机界面内容
+  tft.setCursor(10, 30);
+  tft.setTextSize(3);
+  tft.print("Starting");
+
+
+  tft.setCursor(80, 120);
+  tft.setTextSize(1);
+  tft.print("Version 1.0.0");
+
+  // 显示一个简单的加载进度条
+  int progressBarWidth = 200;
+  int progressBarHeight = 20;
+  int progressX = (tft.width() - progressBarWidth) / 2;
+  int progressY = tft.height() - 50;
+  
+  // 绘制进度条背景
+  tft.fillRect(progressX, progressY, progressBarWidth, progressBarHeight, TFT_DARKGREY);
+  
+  // 填充进度条
+  for (int i = 0; i <= progressBarWidth; i++) {
+    tft.fillRect(progressX, progressY, i, progressBarHeight, TFT_GREEN);
+    delay(3);  // 延时模拟加载进度
+  }
+
 
   Serial.begin(921600);
   startTime = millis();  // 开机时间重置
