@@ -16,6 +16,7 @@
 #define USER_PIN  0
 
 
+
 #define I2C_ADDRESS 0x40
 
 /*===================== 全局对象 =====================*/
@@ -47,10 +48,10 @@ String prevPowerStr   = "";
 String prevVoltStr    = "";
 String prevCurrStr    = "";
 
-
-
-// 记录是否有数值大于10
-bool isGreaterThan10 = false;
+// 新增：用于检测数值是否跨越10的阈值
+bool powerAbove10_prev = false;
+bool voltAbove10_prev = false;
+bool currAbove10_prev = false;
 
 /*===================== 函数声明 =====================*/
 void animationTask(void *pvParameters);
@@ -124,7 +125,7 @@ void setup() {
   resetTime();
 
   // // 。。。其他硬件初始化操作。。。
-  // delay(1000); // 模拟耗时
+  delay(200); // 模拟耗时
 
   Serial.println("Hardware init done.");
 
@@ -188,12 +189,12 @@ void loop() {
 void animationTask(void *pvParameters) {
   // 清屏 & 打印初始信息
   tft.fillScreen(TFT_BLACK);
-  tft.setCursor(20, 30);
+  tft.setCursor(10, 40);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(3);
-  tft.println("Starting...");
+  tft.println("Starting");
   tft.setTextSize(1);
-  tft.setCursor(90, 80);
+  tft.setCursor(70, 110);
   tft.println("Version 1.0.0");
 
   // 画一个进度条
@@ -227,7 +228,7 @@ void animationTask(void *pvParameters) {
     tft.fillRect(progressX, progressY, filled, progressBarHeight, TFT_GREEN);
 
     // 模拟刷新耗时
-    vTaskDelay(pdMS_TO_TICKS(30));
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
 
   // 进度条完成，结束动画
@@ -253,6 +254,11 @@ void displayTask(void *pvParameters) {
   // 画分界线 (不再每次重画)
   tft.drawLine(0, 68, 160, 68, TFT_CYAN);
 
+  // 初始化前一次状态变量
+  powerAbove10_prev = false;
+  voltAbove10_prev = false;
+  currAbove10_prev = false;
+
   // 主循环：数据尽可能高频率采样 & 局部刷新
   while(true) {
     // 如果没进入设置模式，就正常显示
@@ -268,7 +274,7 @@ void displayTask(void *pvParameters) {
 
         // 画分界线 (不再每次重画)
         tft.drawLine(0, 68, 160, 68, TFT_CYAN);
-        inSettingModeLast = 0;
+        inSettingModeLast = false;
       }
       continuousSampling();
 
@@ -279,6 +285,34 @@ void displayTask(void *pvParameters) {
       // 3) 电流
       String currStr = formatFloat(current_mA / 1000.0, 3);
 
+      // 解析当前数值是否大于等于10
+      bool powerAbove10_current = (calculatePower() >= 10.0f);
+      bool voltAbove10_current = (loadVoltage_V >= 10.0f);
+      bool currAbove10_current = ((current_mA / 1000.0f) >= 10.0f);
+
+      // 检查是否有数值跨越10的阈值
+      bool screenClearNeeded = false;
+      if (powerAbove10_current != powerAbove10_prev ||
+          voltAbove10_current != voltAbove10_prev ||
+          currAbove10_current != currAbove10_prev) {
+        screenClearNeeded = true;
+      }
+
+      // 更新前一次状态
+      powerAbove10_prev = powerAbove10_current;
+      voltAbove10_prev = voltAbove10_current;
+      currAbove10_prev = currAbove10_current;
+
+      // 如果需要清屏
+      if(screenClearNeeded) {
+        tft.fillScreen(TFT_BLACK);
+        // 重新绘制固定元素
+        tft.setTextColor(TFT_PINK, TFT_BLACK);
+        tft.setCursor(0, 0);
+        tft.print("Power(W):");
+        tft.drawLine(0, 68, 160, 68, TFT_CYAN);
+      }
+
       // 4) 显示功率 (大字)
       {
         // 覆盖掉上次的数字区域
@@ -288,7 +322,6 @@ void displayTask(void *pvParameters) {
         tft.setTextFont(6);
         tft.setCursor(10, 20);
         tft.print(powerStr);
-        
       }
 
       // 5) 显示电压
@@ -345,7 +378,7 @@ void displayTask(void *pvParameters) {
       // 或保持不动
     }
 
-    // 刷新频率尽可能高，这里示例10ms
+    // 刷新频率尽可能高，这里示例20ms
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
@@ -531,21 +564,9 @@ void continuousSampling() {
 /*  工具函数：格式化浮点数                                                          */
 /* -------------------------------------------------------------------------------- */
 String formatFloat(float num, int decimalPlaces) {
-  // 如果num小于0，设置为0
   if (num < 0) {
     num = 0;
   }
-
-  // 判断是否有数值大于10
-  bool currentStatus = num > 10;
-
-  // 如果状态改变，输出Hello
-  if (currentStatus != isGreaterThan10) {
-    tft.fillScreen(TFT_BLACK);
-    isGreaterThan10 = currentStatus;
-  }
-
-  // 格式化字符串
   String formatString = String("%0." + String(decimalPlaces) + "f");
   char buffer[32];
   snprintf(buffer, sizeof(buffer), formatString.c_str(), num);
